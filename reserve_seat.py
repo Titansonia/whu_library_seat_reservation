@@ -5,11 +5,13 @@ import random
 from bs4 import BeautifulSoup
 
 
-class Login(object):
+class WhuLibrarySeat(object):
     login_url = "http://seat.lib.whu.edu.cn/auth/signIn"
     captcha_url = 'http://seat.lib.whu.edu.cn//simpleCaptcha/captcha'
     booking_url_01 = "http://seat.lib.whu.edu.cn/"
+    #布局选座模式
     booking_url_02 = "http://seat.lib.whu.edu.cn/map"
+    #常用座位模式
     booking_url_03 = "http://seat.lib.whu.edu.cn/freeBook/fav"
 
     def __init__(self):
@@ -22,16 +24,16 @@ class Login(object):
         if username and password:
             self.username = username
             self.password = password
-            self.captcha = input('please enter captcha: ')
+            self.captcha = input('Captcha:(Saved at current directory.) \n')
         else:
             return None
 
     def downloadCaptcha(self):
         isDownOk = False
         try:
-            if Login.captcha_url:
-                out_img = open("code.jpg","wb")
-                img = urllib.request.urlopen(Login.captcha_url).read()
+            if WhuLibrarySeat.captcha_url:
+                out_img = open("captcha.jpg","wb")
+                img = urllib.request.urlopen(WhuLibrarySeat.captcha_url).read()
                 out_img.write(img)
                 out_img.flush()
                 out_img.close()
@@ -52,7 +54,7 @@ class Login(object):
         if (self.downloadCaptcha()):
             self.setPostData(username,password)
         else:
-            print("captcha false")
+            print("get captcha error!")
             return None
 
         headers = {"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0"}
@@ -63,7 +65,7 @@ class Login(object):
         }
 
         post_data = urllib.parse.urlencode(post_data).encode("utf-8")
-        request = urllib.request.Request(Login.login_url,post_data,headers)
+        request = urllib.request.Request(WhuLibrarySeat.login_url,post_data,headers)
 
         response = urllib.request.urlopen(request)
         result = response.read().decode('utf-8')
@@ -92,7 +94,7 @@ class Login(object):
             if(li.a):
                 #座位id范围
                 seat_num = li.a.text
-                if(start_seat_id<=int(seat_num)<=end_seat_id):
+                if(start_seat_id <= int(seat_num) <= end_seat_id):
                     #这里获得到每一个座位id
                     seat_id = li["id"].split("_")[1]
                     post_data = {
@@ -109,81 +111,131 @@ class Login(object):
                     response = urllib.request.urlopen(request)
                     result = response.read().decode("utf-8")
                     if("预约失败" in result):
-                        print("Booking Failed. Seat No."+seat_num)
+                        print("Booking Failed. Date "+date+", Seat No."+seat_num+", room "+room_id+".")
+                        isBooked = False
                     else:
                         isBooked = True
-                        print("Booking Success! Date "+date+", Seat No."+seat_num+", room "+room_id+", floor 2, building 1.")
+                        print("Booking Success! Date "+date+", Seat No."+seat_num+", room "+room_id+".\n")
                         break
         return isBooked
-
-    #def freeBook(self):
-        ##下面两种使用post
-        # url3 = "http://seat.lib.whu.edu.cn/freeBook/ajaxGetRooms"
-        # url4 = "http://seat.lib.whu.edu.cn/freeBook/ajaxSearch"
 
 
     def randomSeatNum(self,start,end):
         return random.randint(start,end)
 
-
+    #根据room_id获得当前room中seat_no的边界
+    def getSeatIdBoundary(self,room_id):
+        url_get_seats_by_room = "http://seat.lib.whu.edu.cn/mapBook/getSeatsByRoom?room=" + room_id
+        response = urllib.request.urlopen(url_get_seats_by_room)
+        result = response.read().decode("utf-8")
+        soup = BeautifulSoup(result, "html.parser")
+        lis = soup.find_all("li")
+        count = 0
+        for li in lis:
+            if (li.a):
+                count += 1
+        return count
 
 if __name__ == '__main__':
     print("-----------------------------------------------------------------------")
-    print("Input Rules")
-    print("Time Lookup:")
+    print("Seat Info Input Rules\n")
+
+    print("[Date Format]\nYYYY-MM-DD(e.g.2017-01-18)\n")
+
+    print("[Time Code Lookup]")
     print("07:30----450   08:00----480\n08:30----510   09:00----540\n09:30----570   10:00----600\n"
           "10:30----630   11:00----660\n11:30----690   12:00----720\n12:30----750   13:00----780\n"
           "13:30----810   14:00----840\n14:30----870   15:00----900\n15:30----930   16:00----960\n"
           "16:30----990   17:00----1020\n17:30----1050  18:00----1080\n18:30----1110  19:00----1140\n"
           "19:30----1170  20:00----1200\n20:30----1230  21:00----1260\n21:30----1290  22:00----1320\n")
 
-    print("Room id Lookup:")
-    print("一楼3C创客空间----4                  一楼创新学习讨论区----5\n"
+    print("[Room id Lookup]")
+    print("信息科学分馆:")
+    print("一层:\n"
+          "一楼3C创客空间----4                  一楼创新学习讨论区----5\n"
           "3C创客-电子资源阅览区（20台）----13    C创客-双屏电脑（20台）----14\n"
           "创新学习-MAC电脑（12台）----15        创新学习-云桌面（42台）----16\n"
+          "二层:\n"
           "二楼自然科学图书借阅区西----6          二楼自然科学图书借阅区东----7\n"
+          "三层:\n"
           "三楼社会科学图书借阅区西----8          三楼社会科学图书借阅区西----8\n"
-          "四楼图书阅览区西----9                 四楼图书阅览区东----11\n"
-          "三楼自主学习区----12 \n")
+          "三楼自主学习区----12\n"
+          "四层:\n"
+          "四楼图书阅览区西----9                 四楼图书阅览区东----11\n")
 
-
-    print("Seat id Boundary:")
-    print("二楼自然科学图书借阅区东:[1-91]  二楼自然科学图书借阅区西:[1-89]\n")
-
-    print("Date Format:\nYYYY-MM-DD(2017-01-18)")
+    print("工学分馆:")
+    print("二层:\n"
+          "201室+东部自科图书借阅区---19          205室+中部电子图书借阅区----31\n"
+          "2楼+中部走廊---29\n"
+          "三层:\n"
+          "301室+东部自科图书借阅区---32          305室+中部自科图书借阅区----33\n"
+          "四层:\n"
+          "401室+东部自科图书借阅区---34          405室+中部期刊阅览区----35\n"
+          "五层:\n"
+          "501室+东部外文图书借阅区---37          505室+中部自科图书借阅区----38\n")
     print("-----------------------------------------------------------------------")
 
-    l = Login()
-    print("Login Info:")
-    #用户名和密码
-    #username = ''
-    #password = ''
-    username = input("username: ")
-    password = input("password: ")
-    isLogin = l.login(username,password)
 
-    #room_id = "7"
-    #date = "2017-01-23"
+    mode = input("Which mode?(pre/inter)\n")
 
-    #seat range mode
-    #start_seat_id = 1
-    #end_seat_id = 24
-    #seat random mode
-    #start_seat_id = random.randint(1,24)
-    #end_seat_id = start_seat_id
+    #进入预录入式预定
+    if mode == "pre":
+        ###自定义信息
+        username = ''
+        password = ''
+        room_id = "7"
+        date = "2017-05-23"
+        start_seat_id = 1
+        end_seat_id = 24
+        start_time = "510"
+        end_time = "1290"
+        ###
 
-    #start_time = "510"
-    #end_time = "1290"
+        while (True):
+            l = WhuLibrarySeat()
+            print("--------------------Predefined mode-----------------------\n")
+            print("[Login Info]")
+            print("Username: " + username)
+            print("Password: " + password)
+            isLogin = l.login(username, password)
+            if (isLogin):
+                print("[Seat Info]")
+                print("Date: " + date)
+                print("Room id: " + room_id)
+                print("Start time: " + start_time)
+                print("End time: " + end_time)
+                print("Start seat id: " + str(start_seat_id))
+                print("End seat id: " + str(end_seat_id))
+                l.map_book(username, password, room_id, date, start_seat_id, end_seat_id, start_time,end_time)
+            else:
+                print("Login failed.")
 
-    if(isLogin):
-        while(True):
-            print("Seat Info:")
-            date = input("please enter date: ")
-            room_id = input("please enter room_id: ")
-            start_time = input("please enter time_from: ")
-            end_time = input("please enter time_to: ")
-            start_seat_id = int(input("please enter start_seat_id: "))
-            end_seat_id = int(input("please enter end_seat_id: "))
-            if l.map_book(username,password,room_id,date,start_seat_id,end_seat_id,start_time,end_time): break
+
+
     else:
-        print("Login failed.")
+        #进入交互式预定
+        if mode == "inter":
+            while (True):
+                l = WhuLibrarySeat()
+                print("--------------------Interactive mode-----------------------\n")
+                print("[Login Info]")
+                username = input("Username: \n")
+                password = input("Password: \n")
+                isLogin = l.login(username, password)
+                if (isLogin):
+                    while (True):
+                        print("[Seat Info]")
+                        date = input("please enter date: \n")
+                        room_id = input("please enter room_id: \n")
+                        start_time = input("please enter time_from: \n")
+                        end_time = input("please enter time_to: \n")
+                        seat_id_limit = l.getSeatIdBoundary(room_id)
+                        start_seat_id = int(
+                            input("please enter start_seat_id:(Less than " + str(seat_id_limit) + ") \n"))
+                        end_seat_id = int(input("please enter end_seat_id:(Less than " + str(seat_id_limit) + ") \n"))
+                        if l.map_book(username, password, room_id, date, start_seat_id, end_seat_id, start_time,
+                                         end_time): break
+                else:
+                    print("Login failed.")
+        #else:
+        #    print("Please enter \"pre\" or \"inter \"")

@@ -2,7 +2,11 @@ import urllib.parse
 import urllib.request
 import http.cookiejar
 import random
+import pytesseract
+import datetime
+from PIL import Image
 from bs4 import BeautifulSoup
+import os
 
 
 class WhuLibrarySeat(object):
@@ -24,7 +28,21 @@ class WhuLibrarySeat(object):
         if username and password:
             self.username = username
             self.password = password
-            self.captcha = input('Captcha:(Saved at current directory.) \n')
+            image = Image.open('captcha.jpg')
+            #转化为灰度图
+            imgry = image.convert('L')
+            #阈值，自己一个个尝试吧
+            threshold = 130
+            table = []  
+            for i in range(256):  
+                if i < threshold:  
+                    table.append(0)  
+                else:  
+                    table.append(1)
+            out = imgry.point(table,'1') 
+            code = pytesseract.image_to_string(out)
+            self.captcha = code
+            print(code)
         else:
             return None
 
@@ -116,6 +134,7 @@ class WhuLibrarySeat(object):
                     else:
                         isBooked = True
                         print("Booking Success! Date "+date+", Seat No."+seat_num+", room "+room_id+".\n")
+                        os._exit()
                         break
         return isBooked
 
@@ -177,19 +196,22 @@ if __name__ == '__main__':
 
 
     mode = input("Which mode?(pre/inter)\n")
+    #mode='pre'
 
     #进入预录入式预定
     if mode == "pre":
         ###自定义信息
-        username = ''
+        username =''
         password = ''
-        room_id = "7"
-        date = "2017-05-23"
-        start_seat_id = 1
-        end_seat_id = 24
-        start_time = "510"
-        end_time = "1290"
-        ###
+        room_id = '8'
+        #获取当前日期，我是打算前一天预定，所以日期加了一天
+        date=str(datetime.date.today()+datetime.timedelta(days=1))
+        
+        #date = "2017-06-01"
+        start_seat_id = 25
+        end_seat_id = 80
+        start_time = "570"
+        end_time = "1230"
 
         while (True):
             l = WhuLibrarySeat()
@@ -237,5 +259,4 @@ if __name__ == '__main__':
                                          end_time): break
                 else:
                     print("Login failed.")
-        #else:
-        #    print("Please enter \"pre\" or \"inter \"")
+        
